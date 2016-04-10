@@ -40,7 +40,7 @@ typedef struct {
 
 
 // Divides the matrix among the process
-void divideMatrix(matrixSlice **lines);
+void divideMatrix(matrixSlice *lines);
 // Create shared memory space for output matrix
 void allocOutMatrix(matrix *matrixOne, matrix *matrixTwo, matrix *matrixOut);
 // Check if the matrices' sizes are compatible
@@ -59,9 +59,6 @@ unsigned long int getTimeStamp();
 int main(int argc, char *argv[]) {
   struct timespec startClock, stopClock;
   unsigned long int cpu_time_used;
-  //matrixSlice lines;
-
-  pid_t *procs;
 
   // Parses the input arguments
   parseInput(argc, argv);
@@ -70,12 +67,69 @@ int main(int argc, char *argv[]) {
   checkSizes(&matrixOne, &matrixTwo);
   allocOutMatrix(&matrixOne, &matrixTwo, &matrixOut);
 
-
+  // // Will be passed to eatch process
   matrixSlice *lines = (matrixSlice*) malloc(procNumber * sizeof(matrixSlice));
+  divideMatrix(lines);
 
-  divideMatrix(&lines);
+  // Create process pids
+  pid_t *procs = (pid_t*) malloc((procNumber-1) * sizeof(pthread_t));
+
+  // Get start time
+  if (ENABLE_TIME_COUNT){
+    clock_gettime(CLOCK_REALTIME, &startClock);
+  }
+  for (int i = 0; i < procNumber-1; i++) {
+    procs[i] = fork();
+    if(procs[i] == -1) {
+      printf("Error creating processes!");
+    }
+    else if(procs[i] == 0) {
+    // Do the job with the child process and exits
+    multiplyMatrices(&lines[i]);
+    exit(0);
+    }
+  }
+  // The parent process also multiplies
+  multiplyMatrices(&lines[procNumber-1]);
+
+  // Join all the threads
+  for (int i = 0; i < procNumber-1; i++) {
+      // Waits for all the children processes to finish
+      waitpid(procs[i], 0, 0);
+  }
+  // Get the stop time
+  if (ENABLE_TIME_COUNT){
+      clock_gettime(CLOCK_REALTIME, &stopClock);
+  }
+
+  if (ENABLE_TIME_COUNT) {
+    // Returns the value in microeconds u
+    cpu_time_used =  ( (1000000000 * (unsigned long int)(stopClock.tv_sec - startClock.tv_sec)) + (unsigned long int)(stopClock.tv_nsec - startClock.tv_nsec))/1000;
+
+    printf("CPU time: %ld us \n", cpu_time_used);
+    printf("CPU Seconds : %ld \n", stopClock.tv_sec - startClock.tv_sec);
+    printf("CPU nSeconds: %ld \n", stopClock.tv_nsec - startClock.tv_nsec);
+
+    FILE *avgFile = fopen(timeLogFile,"a");
+    if (avgFile != NULL) {
+         fprintf(avgFile, "%ld\n", cpu_time_used);
+         fflush(avgFile);
+         fclose(avgFile);
+    }
+  }
 
 
+
+
+
+  free(procs);
+  free(lines);
+  shmdt(matrixOne.mat);
+  shmdt(matrixTwo.mat);
+  shmdt(matrixOut.mat);
+  shmctl(matrixOne.seg_id, IPC_RMID, NULL);
+  shmctl(matrixTwo.seg_id, IPC_RMID, NULL);
+  shmctl(matrixOut.seg_id, IPC_RMID, NULL);
 
 
   exit(0);
@@ -93,7 +147,7 @@ void multiplyMatrices(matrixSlice *ptr) {
   int *mat2 = matrixTwo.mat;
   int *matOut = matrixOut.mat;
 
-  for (i; i < m; i++) {
+  for (i = matLines->line_start; i < m; i++) {
     for (j = 0; j < l; j++) {
       sum = 0;
       for (t = 0; t < n || t < k; t++) {
@@ -104,7 +158,7 @@ void multiplyMatrices(matrixSlice *ptr) {
   }
 }
 
-void divideMatrix(matrixSlice **lines) {
+void divideMatrix(matrixSlice *lines) {
   // lpt - Lines Per Thread
   int lpt = matrixOne.lines / procNumber;
   int resto = matrixOne.lines % procNumber;
@@ -112,19 +166,16 @@ void divideMatrix(matrixSlice **lines) {
     printf("Can't do more Process than lines in the matrix!");
     exit(0);
   }
-
-  for (int i = 0; i < procNumber; i++)
-  {
-    lines[i]->line_start = i*lpt;
-    lines[i]->line_stop = (i*lpt) + (lpt - 1);
+  for (int i = 0; i < procNumber; i++) {
+    lines[i].line_start = i*lpt;
+    lines[i].line_stop = (i*lpt) + (lpt - 1);
   }
   // If there are not an equal number of lines for each process
   // The odd ones are appended to the last process
   if (resto) {
-    lines[procNumber-1]->line_stop = lines[procNumber-1]->line_stop + resto;
+    lines[procNumber-1].line_stop = lines[procNumber-1].line_stop + resto;
   }
 }
-
 
 void allocOutMatrix(matrix *matrixOne, matrix *matrixTwo, matrix *matrixOut) {
   // Determine the size of the segment
@@ -139,7 +190,7 @@ void allocOutMatrix(matrix *matrixOne, matrix *matrixTwo, matrix *matrixOut) {
 void loadMatrix(matrix *m, char *matFile) {
   int i = 0, j = 0, t = 0;
   int lines, columns;
-  char *buff;
+  char buff[30];
   FILE *file;
 
   // Opens file
@@ -148,12 +199,13 @@ void loadMatrix(matrix *m, char *matFile) {
     printf("Error: Couldn't open the file %s", matFile);
     exit(1);
   }
+
   // Gets the matrix's size
-  fscanf(file, "%s", &buff[0]);
-  fscanf(file, "%s", &buff[0]);
+  fscanf(file, "%s", buff);
+  fscanf(file, "%s", buff);
   fscanf(file, "%d", &lines);
-  fscanf(file, "%s", &buff[0]);
-  fscanf(file, "%s", &buff[0]);
+  fscanf(file, "%s", buff);
+  fscanf(file, "%s", buff);
   fscanf(file, "%d", &columns);
 
   m->lines = lines;
