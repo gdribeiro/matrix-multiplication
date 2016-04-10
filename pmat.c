@@ -96,10 +96,12 @@ int main(int argc, char *argv[]) {
   // Get the stop time
   if (ENABLE_TIME_COUNT) {
     clock_gettime(CLOCK_REALTIME, &stopClock);
+    timeLog(startClock, stopClock);
   }
 
   writeOutMatrix(&matrixOut);
 
+  // frees
   free(procs);
   free(lines);
   shmdt(matrixOne.mat);
@@ -175,6 +177,7 @@ void timeLog(struct timespec startClock, struct timespec stopClock) {
   //
   FILE *timeFile = fopen(timeLogFile, "a");
   if (timeFile != NULL) {
+    printf("File opened!\n");
     fprintf(timeFile, "%lu\n", cpu_time_used);
     fflush(timeFile);
     fclose(timeFile);
@@ -262,7 +265,7 @@ void parseInput(int argc, char *argv[]) {
   matFileOne = "./in1.txt";
   matFileTwo = "./in2.txt";
   outFileTxt = "./out.txt";
-  timeLogFile = "./timelog";
+  timeLogFile = "./time.log";
   procNumber = 1;
 
   for (int i = 1; i < argc - 1; i++) {
