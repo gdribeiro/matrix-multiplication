@@ -39,8 +39,13 @@ typedef struct {
 } matrixSlice;
 
 
-
+// Divides the matrix among the process
+void divideMatrix(matrixSlice **lines);
+// Create shared memory space for output matrix
+void allocOutMatrix(matrix *matrixOne, matrix *matrixTwo, matrix *matrixOut);
+// Check if the matrices' sizes are compatible
 void checkSizes(matrix *matrixOne, matrix *matrixTwo);
+// Does what it says!!
 void show_matrix(matrix *matt);
 // Create memory space and load matrices from files
 void loadMatrix(matrix *m, char *matFile);
@@ -54,7 +59,7 @@ unsigned long int getTimeStamp();
 int main(int argc, char *argv[]) {
   struct timespec startClock, stopClock;
   unsigned long int cpu_time_used;
-  matrixSlice lines;
+  //matrixSlice lines;
 
   pid_t *procs;
 
@@ -62,8 +67,14 @@ int main(int argc, char *argv[]) {
   parseInput(argc, argv);
   loadMatrix(&matrixOne, matFileOne);
   loadMatrix(&matrixTwo, matFileTwo);
-
   checkSizes(&matrixOne, &matrixTwo);
+  allocOutMatrix(&matrixOne, &matrixTwo, &matrixOut);
+
+
+  matrixSlice *lines = (matrixSlice*) malloc(procNumber * sizeof(matrixSlice));
+
+  divideMatrix(&lines);
+
 
 
 
@@ -71,24 +82,57 @@ int main(int argc, char *argv[]) {
 }
 
 void multiplyMatrices(matrixSlice *ptr) {
-  matrixSlice *lines;
-  matLines = (matrixSlice*) ptr;
+  matrixSlice *matLines = (matrixSlice*) ptr;
   int i = matLines->line_start;
   int m = matLines->line_stop + 1;
+  int n = matrixOne.columns;
   int l = matrixTwo.columns;
   int k = matrixTwo.lines;
   int j, t, sum;
-
+  int *mat1 = matrixOne.mat;
+  int *mat2 = matrixTwo.mat;
+  int *matOut = matrixOut.mat;
 
   for (i; i < m; i++) {
     for (j = 0; j < l; j++) {
       sum = 0;
       for (t = 0; t < n || t < k; t++) {
-        sum = sum + ((*(mat1 + (i * n) + t)) * (*(mat2 + j + (t * l))));
+        sum = sum + (( *(mat1+(i*n)+t)) * ( *(mat2+(t*l)+j) ));
       }
-      *(matOut + (i * l) + j) = sum;
+      *(matOut+(i*l)+j) = sum;
     }
   }
+}
+
+void divideMatrix(matrixSlice **lines) {
+  // lpt - Lines Per Thread
+  int lpt = matrixOne.lines / procNumber;
+  int resto = matrixOne.lines % procNumber;
+  if (matrixOne.lines < procNumber) {
+    printf("Can't do more Process than lines in the matrix!");
+    exit(0);
+  }
+
+  for (int i = 0; i < procNumber; i++)
+  {
+    lines[i]->line_start = i*lpt;
+    lines[i]->line_stop = (i*lpt) + (lpt - 1);
+  }
+  // If there are not an equal number of lines for each process
+  // The odd ones are appended to the last process
+  if (resto) {
+    lines[procNumber-1]->line_stop = lines[procNumber-1]->line_stop + resto;
+  }
+}
+
+
+void allocOutMatrix(matrix *matrixOne, matrix *matrixTwo, matrix *matrixOut) {
+  // Determine the size of the segment
+  matrixOut->seg_size = matrixOne->lines * matrixTwo->columns * sizeof(int);
+  // Allocate shared memory segment
+  matrixOut->seg_id = shmget(IPC_PRIVATE,(const int) matrixOut->seg_size, S_IRUSR | S_IWUSR);
+  // Attach the shared memory segment
+  matrixOut->mat = (int*) shmat(matrixOut->seg_id, NULL, 0);
 }
 
 // Create memory space and load matrices from files
