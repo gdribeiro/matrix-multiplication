@@ -18,75 +18,69 @@ char *matFileOne;
 char *matFileTwo;
 char *outFileTxt;
 char *timeLogFile;
+int procNumber;
 
-// Matrices' pointer
-int *mat1 = NULL;
-int *mat2 = NULL;
-int *matOut = NULL;
 // Matrices's sizes
 int m, n, k, l;
 
-int procNumber;
+typedef struct {
+  int seg_id;
+  int seg_size;
+  int *mat;
+  int lines, columns;
+} matrix;
 
-// Shared memory variables
-int segment_id;
-int segment_size;
+matrix matrixOne, matrixTwo, matrixOut;
 
-// Argument passed to the new created processes
 // To divide the job of multiplication
-typedef struct str_thdata {
-  int line_begin;
-  int line_final;
-} thdata;
+typedef struct {
+  int line_start;
+  int line_stop;
+} matrixSlice;
 
 
-// Parse files and create the memory space for each input matrix
-int *parseFiles(char* matFile);
+
+void checkSizes(matrix *matrixOne, matrix *matrixTwo);
+void show_matrix(matrix *matt);
+// Create memory space and load matrices from files
+void loadMatrix(matrix *m, char *matFile);
 // Parse input
 void parseInput(int argc, char *argv[]);
 // Multiply the matrices
-void multiplyMatrices(thdata *ptr);
+void multiplyMatrices(matrixSlice *ptr);
 // Return a time stamp to calculate the execution time
 unsigned long int getTimeStamp();
 
 int main(int argc, char *argv[]) {
-  // Timing
-  // struct timespec startClock, stopClock;
-  // unsigned long int cpu_time_used;
-  //
-  // int i = 0, j = 0, t = 0;
-  // int threads_number;
-  // FILE *in1, *in2, *outFile;
-  // FILE *avgFile;
-  // char *buff;
-  // pid_t *Thds;
+  struct timespec startClock, stopClock;
+  unsigned long int cpu_time_used;
+  matrixSlice lines;
 
+  pid_t *procs;
 
   // Parses the input arguments
   parseInput(argc, argv);
+  loadMatrix(&matrixOne, matFileOne);
+  loadMatrix(&matrixTwo, matFileTwo);
 
-
-  printf("Imput matrices' files: %s and %s\n",matFileOne, matFileTwo);
-  printf("Output matrix's file: %s\n", outFileTxt);
-  printf("Time log file: %s\n",timeLogFile);
-  printf("Number of process: %d\n",procNumber);
+  checkSizes(&matrixOne, &matrixTwo);
 
 
 
   exit(0);
 }
 
-void multiplyMatrices(thdata *ptr) {
-  thdata *lines;
-  lines = (thdata *)ptr;
+void multiplyMatrices(matrixSlice *ptr) {
+  matrixSlice *lines;
+  matLines = (matrixSlice*) ptr;
+  int i = matLines->line_start;
+  int m = matLines->line_stop + 1;
+  int l = matrixTwo.columns;
+  int k = matrixTwo.lines;
+  int j, t, sum;
 
-  int i = 0, j = 0, t = 0, sum = 0, m = 0;
 
-  i = lines->line_begin;
-  m = lines->line_final + 1;
-
-  printf("%d %d \n", lines->line_begin, lines->line_final);
-  for (i = 0; i < m; i++) {
+  for (i; i < m; i++) {
     for (j = 0; j < l; j++) {
       sum = 0;
       for (t = 0; t < n || t < k; t++) {
@@ -97,50 +91,49 @@ void multiplyMatrices(thdata *ptr) {
   }
 }
 
-int *parseFiles(char* matFile) {
+// Create memory space and load matrices from files
+void loadMatrix(matrix *m, char *matFile) {
   int i = 0, j = 0, t = 0;
-  FILE *in;
+  int lines, columns;
   char *buff;
-  int *mat = NULL;
-  // Shared memory variables
-  int seg_id;
-  int seg_size;
+  FILE *file;
 
   // Opens file
-  in = fopen(matFile, "r");
-  if (in == NULL) {
-    printf("Error: Opening the file!");
+  file = fopen(matFile, "r");
+  if (file == NULL) {
+    printf("Error: Couldn't open the file %s", matFile);
     exit(1);
   }
   // Gets the matrix's size
-  fscanf(in, "%s", &buff);
-  fscanf(in, "%s", &buff);
-  fscanf(in, "%d", &m);
-  fscanf(in, "%s", &buff);
-  fscanf(in, "%s", &buff);
-  fscanf(in, "%d", &n);
-  // Prints Size
-  printf("m= %d x n= %d", m, n);
+  fscanf(file, "%s", &buff[0]);
+  fscanf(file, "%s", &buff[0]);
+  fscanf(file, "%d", &lines);
+  fscanf(file, "%s", &buff[0]);
+  fscanf(file, "%s", &buff[0]);
+  fscanf(file, "%d", &columns);
+
+  m->lines = lines;
+  m->columns = columns;
 
   // The input matrices are also with shared memmory
-  seg_size = m * n * sizeof(int);
+  m->seg_size = lines * columns * sizeof(int);
   // Allocate shared memory segment
-  seg_id = shmget(IPC_PRIVATE, (const int)seg_size, S_IRUSR | S_IWUSR);
+  m->seg_id = shmget(IPC_PRIVATE, (const int)m->seg_size, S_IRUSR | S_IWUSR);
   // Attach the shared memory segment
-  mat = (int*)shmat(seg_id, NULL, 0);
+  m->mat = (int*)shmat(m->seg_id, NULL, 0);
 
   // Lines
-  for (i = 0; i < m; i++) {
-    if (feof(in)) {
-      printf("Error while reading file!");
+  for (i = 0; i < lines; i++) {
+    if (feof(file)) {
+      printf("Error: Cannot read the file!");
       exit(1);
     }
     // Columns
-    for (j = 0; j < n; j++) {
-      fscanf(in, "%d", &(*(mat + (i * n) + j)));
+    for (j = 0; j < columns; j++) {
+      fscanf(file, "%d", &(*(m->mat + (i * columns) + j)));
     }
   }
-  fclose(in);
+  fclose(file);
 }
 
 // Parses the input arguments
@@ -185,4 +178,31 @@ void parseInput(int argc, char *argv[]) {
   printf("Time log file: %s\n",timeLogFile);
   printf("Number of process: %d\n",procNumber);
   printf("For more options use: -i <input file 1> <input file 2> -o <output file> -n <number of process>\n");
+}
+
+void show_matrix(matrix *matt) {
+  int m = matt->lines;
+  int n = matt->columns;
+  int *mat = matt->mat;
+
+  // Loop variables
+  int i = 0, j = 0;
+  // Show the matrix's content
+  // i iterates the lines
+  for (i = 0; i < m; i++) {
+      // j iterates the columns
+      for (j = 0; j < n; j++) {
+          // print the Matrix's m*n element
+          printf(" %d ", *(mat + (i * n) + j));
+      }
+      // Break the lines for vizualization on the screen
+      printf("\n");
+  }
+}
+
+void checkSizes(matrix *matrixOne, matrix *matrixTwo) {
+  if (matrixOne->columns != matrixTwo->lines) {
+    printf("Erros: Matrices sizes are not compatible!\n");
+    exit(0);
+  }
 }
