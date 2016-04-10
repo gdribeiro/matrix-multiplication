@@ -117,10 +117,7 @@ int main(int argc, char *argv[]) {
          fclose(avgFile);
     }
   }
-
-
-
-
+  show_matrix(&matrixOut);
 
   free(procs);
   free(lines);
