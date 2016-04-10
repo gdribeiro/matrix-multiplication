@@ -9,6 +9,7 @@
 #include <sys/shm.h>
 #include <sys/ipc.h>
 #include <sys/stat.h>
+#include <pthread.h>
 
 // Enables time counting if true or not if false
 #define ENABLE_TIME_COUNT true
@@ -21,8 +22,6 @@ char *timeLogFile;
 int procNumber;
 
 typedef struct {
-  int seg_id;
-  int seg_size;
   int *mat;
   int lines, columns;
 } matrix;
@@ -69,29 +68,24 @@ int main(int argc, char *argv[]) {
   matrixSlice *lines = (matrixSlice *)malloc(procNumber * sizeof(matrixSlice));
   divideMatrix(lines);
 
-  // Create process pids
-  pid_t *procs = (pid_t *)malloc((procNumber - 1) * sizeof(pthread_t));
+  // Threads' ids
+  pthread_t *thrs = (pthread_t*)malloc(procNumber*sizeof(pthread_t));
 
   // Get start time
   if (ENABLE_TIME_COUNT) {
     clock_gettime(CLOCK_REALTIME, &startClock);
   }
-  for (int i = 0; i < procNumber - 1; i++) {
-    procs[i] = fork();
-    if (procs[i] == -1) {
-      printf("Error creating processes!");
-    } else if (procs[i] == 0) {
-      // Do the job with the child process and exits
-      multiplyMatrices(&lines[i]);
-      exit(0);
-    }
-  }
-  // The parent process also multiplies
-  multiplyMatrices(&lines[procNumber - 1]);
-  // Join all the threads
-  for (int i = 0; i < procNumber - 1; i++) {
-    // Waits for all the children processes to finish
-    waitpid(procs[i], 0, 0);
+
+  for (int i = 0; i < procNumber; i++) {
+      int err = pthread_create(&thrs[i], NULL, (void*) &multiplyMatrices, &lines[i]);
+      if(err != 0) {
+          printf ("Error creating thread %d!\n", i);
+          exit (1);
+      }
+   }
+  for (int i = 0; i < procNumber; i++) {
+    // Join threads
+    pthread_join(thrs[i], NULL);
   }
   // Get the stop time
   if (ENABLE_TIME_COUNT) {
@@ -102,14 +96,11 @@ int main(int argc, char *argv[]) {
   writeOutMatrix(&matrixOut);
 
   // frees
-  free(procs);
+  free(thrs);
   free(lines);
-  shmdt(matrixOne.mat);
-  shmdt(matrixTwo.mat);
-  shmdt(matrixOut.mat);
-  shmctl(matrixOne.seg_id, IPC_RMID, NULL);
-  shmctl(matrixTwo.seg_id, IPC_RMID, NULL);
-  shmctl(matrixOut.seg_id, IPC_RMID, NULL);
+  free(matrixOne.mat);
+  free(matrixTwo.mat);
+  free(matrixOut.mat);
 
   exit(0);
 }
@@ -205,13 +196,7 @@ void divideMatrix(matrixSlice *lines) {
 void allocOutMatrix(matrix *matrixOne, matrix *matrixTwo, matrix *matrixOut) {
   matrixOut->lines = matrixOne->columns;
   matrixOut->columns = matrixTwo->lines;
-  // Determine the size of the segment
-  matrixOut->seg_size = matrixOne->lines * matrixTwo->columns * sizeof(int);
-  // Allocate shared memory segment
-  matrixOut->seg_id =
-      shmget(IPC_PRIVATE, (const int)matrixOut->seg_size, S_IRUSR | S_IWUSR);
-  // Attach the shared memory segment
-  matrixOut->mat = (int *)shmat(matrixOut->seg_id, NULL, 0);
+  matrixOut->mat = (int*) malloc(matrixOut->lines*matrixOut->columns*sizeof(int));
 }
 // Create memory space and load matrices from files
 void loadMatrix(matrix *m, char *matFile) {
@@ -238,12 +223,11 @@ void loadMatrix(matrix *m, char *matFile) {
   m->lines = lines;
   m->columns = columns;
 
-  // The input matrices are also with shared memmory
-  m->seg_size = lines * columns * sizeof(int);
-  // Allocate shared memory segment
-  m->seg_id = shmget(IPC_PRIVATE, (const int)m->seg_size, S_IRUSR | S_IWUSR);
-  // Attach the shared memory segment
-  m->mat = (int *)shmat(m->seg_id, NULL, 0);
+  m->mat = (int*) malloc(lines*columns*sizeof(int));
+  if(!(m->mat)) {
+      printf("Error: Couldn't allocate memory for the matrix!\n");
+      exit (1);
+  }
 
   // Lines
   for (i = 0; i < lines; i++) {
