@@ -9,8 +9,8 @@ n = int(sys.argv[2])
 #file to save the matrix
 fname = sys.argv[3]
 
-# 
-mat = [[random.randint(0, 10) for x in range(n)] for x in range(m)]
+# List Comprehension is awesome!!
+mat = [[random.randint(0, 1) for x in range(n)] for x in range(m)]
 out = ""
 out += "LINHAS = %d" % int(sys.argv[1])
 out += '\n'

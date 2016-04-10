@@ -12,10 +12,13 @@
 
 
 // Filenames definitions
+// Matrices
 #define matFileOne "./in1.txt"
 #define matFileTwo "./in2.txt"
 #define outFileTxt "./out.txt"
+// File for time mesurements output
 #define avgFileTxt "./avarage.txt"
+// Does what it says
 #define ENABLE_TIME_COUNT true
 // Global variables
 // Source matrices and resulting matrix
@@ -23,12 +26,16 @@
 int* mat1 = NULL;
 int* mat2 = NULL;
 int* matout = NULL;
+// m,k = lines
+// n, l = columns
 int m, n, k, l;
 
-// Variables to control the shared memmory
+// For shared memory control
 int segment_id;
 int segment_size;
 
+// Argument passed to the new created processes
+// To divide the job of multiplication
 typedef struct str_thdata
 {
     int line_begin;
@@ -40,7 +47,7 @@ void multiplyMatrices(thdata *ptr);
 // Return a time stamp to calculate the execution time
 unsigned long int getTimeStamp();
 
-void main(int argc, char * argv[])
+int main(int argc, char * argv[])
 {
     // Variable to monitor the time required to multiply the matrices
     struct timespec startClock, stopClock;
@@ -282,7 +289,8 @@ void main(int argc, char * argv[])
     shmdt(matout);
     // Remove the shared memory segment
     shmctl(segment_id, IPC_RMID, NULL);
-    exit(0);
+
+    return 0;
 }
 
 void multiplyMatrices(thdata * ptr)
