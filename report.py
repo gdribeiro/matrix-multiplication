@@ -10,14 +10,7 @@ import pandas as pd
 pd.set_option('display.mpl_style', 'default')
 # figsize(15,5)
 
-fname = 'avarage.txt'
-
-# Number of times to run each program
-try:
-    m = int(sys.argv[1])
-except:
-    print 'Run command like this: ./report.py <numver tests to run>'
-    sys.exit(0)
+fname = './tests-output/t_400_2_100.txt'
 
 # if os.path.Exists('avarage.txt'):
 
@@ -30,6 +23,6 @@ except:
 #
 # print lst
 
-pf = pd.read_table('./avarage.txt', sep='\n')
+pf = pd.read_table(fname, sep='\n')
 pf.plot()
 a = raw_input()

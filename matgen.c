@@ -51,7 +51,7 @@ int main(int argc, char *argv[]) {
         printf("Error occurred while allocating memory for the matrix!\n");
         exit(1);
     } else
-        printf("Matrix allocated successfully!\n");
+        // printf("Matrix allocated successfully!\n");
 
     // Generates the Matrices
     //
@@ -89,8 +89,8 @@ void rand_matrix(int m, int n, int *mat) {
             *(mat + (i * n) + j) = rand() % 10;
         }
     }
-    printf("Ramdom Matrix with dimentions %d x %d was created successfully!\n",
-           m, n);
+    // printf("Ramdom Matrix with dimentions %d x %d was created successfully!\n",
+          //  m, n);
 }
 
 // Builds the identity matrix
@@ -127,9 +127,9 @@ int identity_matrix(int m, int n) {
 
     fflush(file);
     fclose(file);
-    printf(
-        "Identity Matrix with dimentions %d x %d was created successfully!\n",
-        m, n);
+    // printf(
+    //     "Identity Matrix with dimentions %d x %d was created successfully!\n",
+    //     m, n);
 }
 
 // Prints the matrix on the screen
