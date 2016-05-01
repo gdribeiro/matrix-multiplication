@@ -1,0 +1,14 @@
+set terminal pdf
+set output 'small-plot.pdf'
+
+set ylabel "Time (Micro Segundos)"
+set xlabel "Number of Process or Threads"
+
+set autoscale
+set xtics (1,2,6,4,8,10,12)
+
+
+FILES = system("ls -1 *_???.txt")
+LABEL = system("ls -1 *_???.txt | sed -e 's/.txt//'")
+
+plot for [i=1:words(FILES)] word(FILES,i) title word(LABEL,i) noenhanced with linespoints

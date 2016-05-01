@@ -222,7 +222,6 @@ void loadMatrix(matrix *m, char *matFile) {
 
   m->lines = lines;
   m->columns = columns;
-
   m->mat = (int*) malloc(lines*columns*sizeof(int));
   if(!(m->mat)) {
       printf("Error: Couldn't allocate memory for the matrix!\n");

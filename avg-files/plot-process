@@ -1,0 +1,14 @@
+set terminal pdf
+set output 'process-plot.pdf'
+
+set ylabel "Time (S)"
+set xlabel "Number of Process"
+
+set autoscale
+set xtics (1,2,6,4,8,10,12)
+set format y "%.0s"
+
+FILES = system("ls -1 p_*.txt")
+LABEL = system("ls -1 p_*.txt | sed -e 's/.txt//'")
+
+plot for [i=1:words(FILES)] word(FILES,i) title word(LABEL,i) noenhanced with linespoints

@@ -205,7 +205,7 @@ void divideMatrix(matrixSlice *lines) {
 void allocOutMatrix(matrix *matrixOne, matrix *matrixTwo, matrix *matrixOut) {
   matrixOut->lines = matrixOne->columns;
   matrixOut->columns = matrixTwo->lines;
-  // Determine the size of the segment
+  // Determines the size of the segment
   matrixOut->seg_size = matrixOne->lines * matrixTwo->columns * sizeof(int);
   // Allocate shared memory segment
   matrixOut->seg_id =

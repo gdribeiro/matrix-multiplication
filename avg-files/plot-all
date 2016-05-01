@@ -1,0 +1,16 @@
+set terminal pdf
+set output 'all-plot.pdf'
+
+set ylabel "Time (S)"
+set xlabel "Number of Process or Threads"
+
+
+set autoscale
+#set yrange [1:400000000]
+set xtics (1,2,6,4,8,10,12)
+set format y "%.0s"
+
+FILES = system("ls -1 *.txt")
+LABEL = system("ls -1 *.txt | sed -e 's/.txt//'")
+
+plot for [i=1:words(FILES)] word(FILES,i) title word(LABEL,i) noenhanced with linespoints
